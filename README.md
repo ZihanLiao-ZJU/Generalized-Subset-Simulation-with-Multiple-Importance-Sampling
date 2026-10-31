@@ -153,6 +153,4 @@ Algorithm-specific references are included in the source: Li, Ma and Cao (2015) 
 
 ## License
 
-This project retains the authors' [MIT License](LICENSE). Shared SeMIS helpers retain their [MIT notice](Support-Fun/LICENSE-SeMIS). The logarithmic routines `logsum.m` and `logmean.m` were written by Zihan Liao. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
-
-`DspRst.m`, `VabSrk.m`, `MisInt.m`, `logmean.m`, and `logsum.m` are byte-identical to the corresponding files in the [SeMIS reliability repository](https://github.com/ZihanLiao-ZJU/Sequential-multiple-importance-sampling-for-Reliability-Estimation), revision `dc227892d7c202ac7c3974b9e83135d69e102cc5`. Equation numbers in those shared-file comments refer to their original SeMIS context.
+Licensed under the [MIT License](LICENSE).
