@@ -1,94 +1,26 @@
-% CW_AMH Component-wise Metropolis-Hastings sampling.
-% BayStc supplies marginal log densities and the union-indicator likelihood.
-% Proposals use uniform increments scaled by the seed sample standard
-% deviation (held fixed within each level). Unchanged states reuse outputs.
-% SamGen(Nchains,Nsteps) initializes from the reference density;
-% SamGen(Xseed,Yseed,Nsteps) advances seeded chains.
-% Outputs: X [Ndim,Nchains,Nsteps], packed Y, and joint call count.
-% Au, S.K.; Beck, J.L. (2001), Estimation of small failure probabilities
-% in high dimensions by subset simulation. Probabilistic Engineering
-% Mechanics 16, 263-277. DOI: 10.1016/S0266-8920(01)00019-4.
-% Xia, W.; Liao, Z. (2025), Enhanced generalized subset simulation with
-% multiple importance sampling for reliability estimation. Computers and
-% Structures 313, 107741. DOI: 10.1016/j.compstruc.2025.107741.
-classdef CW_aMH
-    properties(Constant)
-        SedSav = false;
-    end
-
-    properties
-        BayStc
-        Ndim
-        Nfun
-    end
-
+% Adapted from Zihan Liao's public MATLAB MCMC samplers; repository LICENSE applies.
+classdef CW_aMH < MCMCBase
+    % Componentwise uniform random walk MH in whitened Gaussian coordinates.
     methods
-        function obj = CW_aMH(BayStc)
-            obj.BayStc = BayStc;
-            obj.Nfun = BayStc.Nfun;
-            obj.Ndim = BayStc.Ndim;
+        function obj=CW_aMH(b)
+            if nargin<1, b=[]; end
+            obj@MCMCBase(b);
         end
-
-        function [x,y,Ncal,baystc] = SamGen(obj,varargin)
-
-            baystc = obj.BayStc;
-            sedsav = obj.SedSav || nargin<=3;
-            NDim = obj.Ndim;
-            NFun = obj.Nfun;
-            if nargin<=3
-                Nc = varargin{1};
-                Ns = varargin{2};
-                x_sed = baystc.SamGen(Nc);
-                baystc = baystc.EvlY(x_sed);
-                y_sed = [baystc.EvlLKF;baystc.EvlPDF;baystc.Y];
-                Ncal = Nc;
-            else
-                x_sed = varargin{1};
-                y_sed = varargin{2};
-                Ns = varargin{3};
-                Nc = size(x_sed,2);
-                Ncal = 0;
-            end
-            x = zeros(NDim,Nc,Ns);
-            y = zeros(NFun,Nc,Ns);
-
-            du = 2*rand(NDim,Nc,Ns)-1;
-            p = rand(NDim,Nc,Ns);
-
-            sigma0 = max(std(x_sed,0,2),eps);
+        function [u,y,Ncal,b]=SamGen(obj,varargin)
+            [b,u0,y0,Ncal,save,L,Nc,Ns]=obj.prepare(varargin{:});
+            d=b.Ndim; z0=L\u0; u=zeros(d,Nc,Ns); y=zeros(b.Nfun,Nc,Ns);
+            du=2*rand(d,Nc,Ns)-1; p=rand(d,Nc,Ns); sigma=max(std(z0,0,2),eps);
             for k=1:Ns
-                if k == 1 && sedsav
-                    x(:,:,1) = x_sed;
-                    y(:,:,1) = y_sed;
-                else
-                    for idim=1:NDim
-                        x(idim,:,k) = x_sed(idim,:) + sigma0(idim)*du(idim,:,k);
-                        baystc.X = x_sed(idim,:);
-                        pdf_sed = baystc.EvlPDF(idim);
-                        baystc.X = x(idim,:,k);
-                        pdf_cad = baystc.EvlPDF(idim);
-                        ind_rej =  exp(pdf_cad-pdf_sed) < p(idim,:,k);
-                        x(idim,ind_rej,k) = x_sed(idim,ind_rej);
-                    end
-                    ind_rep = all(x(:,:,k) == x_sed,1);
-                    ind_evl = ~ind_rep;
-                    y(:,ind_rep,k) = y_sed(:,ind_rep);
-                    dcal = sum(ind_evl);
-                    if dcal>0
-                        ind_sam = 1:Nc;
-                        ind_evl = ind_sam(ind_evl);
-                        baystc = baystc.EvlY(x(:,ind_evl,k));
-                        y(:,ind_evl,k) = [baystc.EvlLKF;baystc.EvlPDF;baystc.Y];
-                        ind_rej =  ind_evl(exp(y(1,ind_evl,k)-y_sed(1,ind_evl)) < rand(1,dcal));
-                        x(:,ind_rej,k) = x_sed(:,ind_rej);
-                        y(:,ind_rej,k) = y_sed(:,ind_rej);
-                        Ncal = Ncal + dcal;
-                    end
-                    x_sed = x(:,:,k);
-                    y_sed = y(:,:,k);
+                if k==1 && save, u(:,:,k)=u0; y(:,:,k)=y0; continue; end
+                z=z0+sigma.*du(:,:,k); rej=obj.reject(-.5*z.^2,-.5*z0.^2,p(:,:,k)); z(rej)=z0(rej);
+                ids=find(any(z~=z0,1));
+                if ~isempty(ids)
+                    proposal=L*z(:,ids); [b,yp,nn]=obj.evaluate(b,proposal); Ncal=Ncal+nn;
+                    rej=obj.reject(yp(1,:),y0(1,ids),rand(1,numel(ids))); yes=~rej;
+                    z0(:,ids(yes))=z(:,ids(yes)); u0(:,ids(yes))=proposal(:,yes); y0(:,ids(yes))=yp(:,yes);
                 end
+                u(:,:,k)=u0; y(:,:,k)=y0;
             end
         end
-
     end
 end

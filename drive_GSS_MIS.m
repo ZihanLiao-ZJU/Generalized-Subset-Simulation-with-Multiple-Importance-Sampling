@@ -1,9 +1,11 @@
-function results = drive_GSS_MIS(example, N, repeats, seed)
+function results = drive_GSS_MIS(example, N, repeats, seed, sampler_name)
 % DRIVE_GSS_MIS Run GSS-MIS: distribution -> sampler -> SeMCS -> MIS.
 % results = drive_GSS_MIS(example, N, repeats, seed)
 % Defaults: example 1, N=440 (Ex1) / 410 (Ex2), 100 runs, seed 2026.
 % Ncal counts joint performance-function vector evaluations.
 if nargin < 1, example = 1; end
+if nargin < 5 || isempty(sampler_name), sampler_name = 'CW_aMH'; end
+assert(any(strcmp(sampler_name,{'CW_aMH','aCS','HMC','ES'})), 'Unknown sampler');
 if nargin < 2 || isempty(N)
     if example == 1, N = 440; else, N = 410; end
 end
@@ -24,7 +26,7 @@ for run = 1:repeats
     rng(seed + run - 1, 'twister');
     if example == 1, PF = Ex1; else, PF = Ex2; end
     model = GSS_MIS(PF);
-    sampler = CW_aMH(model);
+    sampler = feval(sampler_name,model);
     simulation = SeMCS(sampler);
     simulation.NumSam = N;
     simulation.MaxIte = 1000;

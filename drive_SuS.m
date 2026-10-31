@@ -1,9 +1,11 @@
-function results = drive_SuS(example, N, repeats, seed)
+function results = drive_SuS(example, N, repeats, seed, sampler_name)
 % DRIVE_SUS Run scalar SuS on each performance function of Ex1 or Ex2.
 % results = drive_SuS(example, N, repeats, seed)
 % Defaults: example 1, N=240 (Ex1) / 180 (Ex2), 100 runs, seed 2026.
 % Explicit policy preserves midpoint thresholds and physical coordinates.
 if nargin < 1, example = 1; end
+if nargin < 5 || isempty(sampler_name), sampler_name = 'CW_aMH'; end
+assert(any(strcmp(sampler_name,{'CW_aMH','aCS','HMC','ES'})), 'Unknown sampler');
 if nargin < 2 || isempty(N)
     if example == 1, N = 240; else, N = 180; end
 end
@@ -31,7 +33,7 @@ for run = 1:repeats
         rng(seed + run - 1 + 10000*j, 'twister');
         PF = ScalarExample(example, j);
         model = SuS(PF, 'physical', 'midpoint', false);
-        simulation = SeMCS(CW_aMH(model));
+        simulation = SeMCS(feval(sampler_name,model));
         simulation.NumSam = N;
         simulation.MaxIte = 1000;
         simulation.Verbose = false;
@@ -40,7 +42,7 @@ for run = 1:repeats
         assert(calls(j) == PF.count, 'Scalar call count mismatch.');
         z = 1;
         for level = 1:out.Nite-1
-            z = z*mean(out.y{level}(4,:) < out.g{level+1});
+            z = z*mean(out.y{level}(4,:) < out.g{level+1}.parameters);
         end
         probability(j) = z*mean(out.y{end}(4,:) < 0);
         completed(j) = out.intBay.FlgCvg;

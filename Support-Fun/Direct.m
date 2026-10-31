@@ -15,24 +15,41 @@ classdef Direct
     methods
         function obj = Direct(Marg_X)
 
-            obj.Ndim = size(Marg_X,1);
+            obj.Ndim = numel(Marg_X);
             obj.Marg_X = Marg_X;
         end
 
+        function X = U2X(obj,U)
+            % Independent Nataf map: Gaussian coordinates to physical marginals.
+            assert(size(U,1)==obj.Ndim,'Direct:Dimension','Input dimension mismatch');
+            X=zeros(size(U));
+            for j=1:obj.Ndim
+                if iscell(obj.Marg_X),marginal=obj.Marg_X{j};else,marginal=obj.Marg_X(j);end
+                if strcmpi(marginal.DistributionName,'Normal')
+                    X(j,:)=marginal.mu+marginal.sigma*U(j,:);
+                elseif strcmpi(marginal.DistributionName,'Lognormal')
+                    X(j,:)=exp(marginal.mu+marginal.sigma*U(j,:));
+                else
+                    X(j,:)=marginal.icdf(.5*erfc(-U(j,:)/sqrt(2)));
+                end
+            end
+        end
         function pdv = EvlPDF(obj,varargin)
 
             marg = obj.Marg_X;
             if nargin>2
                 X = varargin{1};
                 idim = varargin{2};
-                pdv = log(marg(idim).pdf(X));
+                if iscell(marg),m=marg{idim};else,m=marg(idim);end
+                pdv = log(m.pdf(X));
             else
                 X = varargin{1};
                 ndim = obj.Ndim;
                 nsam = size(X,2);
                 pdv = zeros(ndim,nsam);
                 for idim = 1:ndim
-                    pdv(idim,:) = log(marg(idim).pdf(X(idim,:)));
+                    if iscell(marg),m=marg{idim};else,m=marg(idim);end
+                    pdv(idim,:) = log(m.pdf(X(idim,:)));
                 end
                 pdv(isnan(pdv)) = 0;
                 pdv = sum(pdv,1);
@@ -50,7 +67,8 @@ classdef Direct
             end
             X = zeros(ndim,Nsam);
             for idim = 1:ndim
-                X(idim,:) = marg(idim).random(1,Nsam);
+                if iscell(marg),m=marg{idim};else,m=marg(idim);end
+                X(idim,:) = m.random(1,Nsam);
             end
         end
     end

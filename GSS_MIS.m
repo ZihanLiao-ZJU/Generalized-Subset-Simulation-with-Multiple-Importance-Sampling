@@ -16,7 +16,7 @@ classdef GSS_MIS
         X
         Y
         Nsam = 1000;
-        G = inf;
+        G = struct("parameters",inf,"p",0.1);
         H = true;
     end
 
@@ -32,8 +32,8 @@ classdef GSS_MIS
         end
         function obj = EvlY(obj,x)
 
-            f = obj.TF.EvlLSF(x);
-            p = obj.TF.Rdis.EvlPDF(x);
+            f = obj.TF.EvlLSF(obj.TF.Rdis.U2X(x));
+            p = -.5*(obj.Ndim*log(2*pi)+sum(x.^2,1));
             obj.X = x;
             obj.Ncal = size(x,2);
             obj.Y = [p;f];
@@ -51,7 +51,7 @@ classdef GSS_MIS
         function Li = EvlLKF(obj)
             y = obj.Y;
             f = y(2:end,:);
-            g = obj.G;
+            g = obj.G.parameters;
             h = obj.H;
             ind = f<g;
             ind = any(ind(h,:),1);
@@ -62,7 +62,7 @@ classdef GSS_MIS
             if nargin>1
                 idim = varargin{1};
                 x = obj.X;
-                Pi = obj.TF.Rdis.EvlPDF(x,idim);
+                Pi = -.5*(log(2*pi)+x(idim,:).^2);
             else
                 y = obj.Y;
                 if ~isempty(y)
@@ -70,7 +70,7 @@ classdef GSS_MIS
                     Pi = q;
                 else
                     x = obj.X;
-                    Pi = obj.TF.Rdis.EvlPDF(x);
+                    Pi = -.5*(obj.Ndim*log(2*pi)+sum(x.^2,1));
                 end
             end
         end
@@ -82,7 +82,7 @@ classdef GSS_MIS
 
             h = obj.H & g>0;
 
-            obj.G = g;
+            obj.G.parameters = g; g = obj.G;
             obj.H = h;
             N_cal = 0;
         end
@@ -90,7 +90,7 @@ classdef GSS_MIS
         function [x_sed,y_sed] = SltSed(obj,x,y,Nsam)
 
             f = y(4:end,:);
-            g = obj.G;
+            g = obj.G.parameters;
             h = obj.H;
             Ns = round(Nsam./(1:Nsam));
             Nsed = round(Nsam./Ns);
@@ -119,7 +119,7 @@ classdef GSS_MIS
         end
 
         function x = SamGen(obj,Nsze)
-            x = obj.TF.Rdis.SamGen(Nsze);
+            x = randn(obj.Ndim,Nsze);
         end
     end
 end
