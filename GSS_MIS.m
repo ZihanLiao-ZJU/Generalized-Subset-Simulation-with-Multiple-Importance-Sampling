@@ -1,123 +1,125 @@
-% GSS_MIS Generalized subset simulation sample-generation framework.
-% Authors: Zihan Liao, Xiao He and Weili Xia (original framework).
-% Samples are columns; each level is [Ndim,Nchains,Nsteps].
-% RunIte returns x/y/g/h and sample, chain and joint-evaluation counts.
-% Packed y rows: log intermediate likelihood, log prior, log reference
-% density, then the performance-function values.
-% Multi-response union thresholds and active sets are provided by the model.
+% GSS_MIS Union-indicator model with independent input marginals.
+% G: performance thresholds; H: active performance functions.
+% Failure and intermediate support use strict g < threshold.
+% Quantiles are computed separately for each performance function.
+% A response is removed from the active union once its threshold reaches zero.
+% Constructor: model = GSS_MIS(Tfun).
 % Xia, W.; Liao, Z. (2025), Enhanced generalized subset simulation with
 % multiple importance sampling for reliability estimation. Computers and
 % Structures 313, 107741. DOI: 10.1016/j.compstruc.2025.107741.
 classdef GSS_MIS
-
-    properties(Constant)
-        MaxIte = 1000;
+    properties
+        TF
+        Ncal = 0;
+        Nfun
+        Ndim
+        X
+        Y
+        Nsam = 1000;
+        G = inf;
+        H = true;
     end
 
-    properties
-        IntBay
-        Sampler
-        ConPrb = 0.1;
-        NumSam = 1000;
-        H = [];
-        G = [];
-        X = [];
-        Y = [];
+    properties(Dependent)
+        FlgCvg
     end
 
     methods
-        function obj = GSS_MIS(Sampler)
+        function obj = GSS_MIS(Tfun)
+            obj.TF = Tfun;
+            obj.Nfun = Tfun.Nfun+3;
+            obj.Ndim = Tfun.Ndim;
+        end
+        function obj = EvlY(obj,x)
 
-            if nargin<1
-                error('1.IntBay 2.Sampler are needed in the inputs of SuS()!!')
+            f = obj.TF.EvlLSF(x);
+            p = obj.TF.Rdis.EvlPDF(x);
+            obj.X = x;
+            obj.Ncal = size(x,2);
+            obj.Y = [p;f];
+        end
+
+        function y = UpdY(obj,y)
+
+            y = y(3:end,:);
+            obj.Y = y;
+            pi = obj.EvlPDF;
+            Li = obj.EvlLKF;
+            y = [Li;pi;y];
+        end
+
+        function Li = EvlLKF(obj)
+            y = obj.Y;
+            f = y(2:end,:);
+            g = obj.G;
+            h = obj.H;
+            ind = f<g;
+            ind = any(ind(h,:),1);
+            Li = log(double(ind));
+        end
+
+        function Pi = EvlPDF(obj,varargin)
+            if nargin>1
+                idim = varargin{1};
+                x = obj.X;
+                Pi = obj.TF.Rdis.EvlPDF(x,idim);
             else
-                obj.Sampler = Sampler;
-                obj.IntBay = Sampler.BayStc;
+                y = obj.Y;
+                if ~isempty(y)
+                    q = y(1,:);
+                    Pi = q;
+                else
+                    x = obj.X;
+                    Pi = obj.TF.Rdis.EvlPDF(x);
+                end
             end
         end
 
-        function out = RunIte(obj)
+        function [y,g,obj,N_cal] = UpdObj(obj,~,y,p)
 
+            f = y(4:end,:);
+            g = max(quantile(f,p,2),0);
 
-            intBay = obj.IntBay;
-            sampler = obj.Sampler;
-            p = obj.ConPrb;
-            maxi = obj.MaxIte;
-            flg_Nsam = numel(obj.NumSam)>1;
-            flg_IntD = ~isempty(obj.H) && length(obj.H)==length(obj.G);
+            h = obj.H & g>0;
 
-            Nsam = zeros(maxi,1);
-            Nsze = zeros(maxi,2);
-            Ncal = zeros(maxi,1);
-            x = cell(maxi,1);
-            y = cell(maxi,1);
-            g = cell(maxi,1);
-            h = cell(maxi,1);
+            obj.G = g;
+            obj.H = h;
+            N_cal = 0;
+        end
 
-            if flg_Nsam
-                Nite_sam = length(obj.NumSam);
-                Nsam(1:Nite_sam) = obj.NumSam;
+        function [x_sed,y_sed] = SltSed(obj,x,y,Nsam)
+
+            f = y(4:end,:);
+            g = obj.G;
+            h = obj.H;
+            Ns = round(Nsam./(1:Nsam));
+            Nsed = round(Nsam./Ns);
+            ind_sed = f<g;
+            ind_sed = any(ind_sed(h,:),1);
+            x_sed_can = x(:,ind_sed);
+            y_sed_can = y(:,ind_sed);
+            Nsed_can = sum(ind_sed,"all");
+            Nsed = Nsed(find(Nsed_can-Nsed>=0,1,"last"));
+            if Nsed_can>=Nsed
+                randind = randperm(Nsed_can,Nsed);
+            elseif Nsed_can>0
+                randind = randi(Nsed_can,1,Nsed);
             else
-                Nsam(:) = obj.NumSam;
+                randind = [];
             end
-            Nsze(1,:) = [Nsam(1),1];
-
-            if flg_IntD
-                Nite_int = length(obj.G);
-                g(1:Nite_int) = obj.G;
-                h(1:Nite_int) = obj.H;
-            else
-                Nite_int = 0;
-                g{1} = intBay.G;
-                h{1} = intBay.H;
+            x_sed = x_sed_can(:,randind);
+            y_sed = y_sed_can(:,randind);
+            if ~isempty(y_sed)
+                y_sed = obj.UpdY(y_sed);
             end
+        end
 
-            for ite = 1:maxi
-                if all(Nsze(ite,:)>0) && ~isnan(Nsze(ite,2))
-                    if ite==1
-                        [x{ite},y{ite},Ncal(ite)] = sampler.SamGen(Nsze(ite,1),Nsze(ite,2));
-                    else
-                        [x{ite},y{ite},Ncal(ite)] = sampler.SamGen(x_sed,y_sed,Nsze(ite,2));
-                    end
-                end
-                Nsam(ite) = prod(Nsze(ite,:));
+        function FlgCvg = get.FlgCvg(obj)
+            FlgCvg = ~any(obj.H);
+        end
 
-                if ite+1<=Nite_int
-                    intBay.G = g{ite+1};
-                    intBay.H = h{ite+1};
-                else
-                    [g{ite+1},h{ite+1},intBay] = intBay.UpdObj(y{ite},p);
-                end
-                sampler.BayStc = intBay;
-
-                [x_sed,y_sed] = intBay.SltSed(x{ite},y{ite},Nsam(ite+1));
-                Nsze(ite+1,1) = size(x_sed,2);
-                Nsze(ite+1,2) = round(Nsam(ite+1)/Nsze(ite+1,1));
-
-                DspRst(ite,Nsam(ite),Nsze(ite,:),Ncal(ite))
-
-
-                if Nsze(ite+1,1)<=0 || ite+1==maxi
-                    flg_cvg = false;
-                    break
-                elseif intBay.FlgCvg
-                    flg_cvg = true;
-                    break
-                end
-            end
-            Nite = ite;
-            [x,y,Nsam,Nsze,Ncal] = VabSrk(Nite,x,y,Nsam,Nsze,Ncal);
-            [g,h] = VabSrk(Nite+1,g,h);
-            out.x = x;
-            out.y = y;
-            out.g = g;
-            out.h = h;
-            out.Nsam = Nsam;
-            out.Nsze = Nsze;
-            out.Ncal = Ncal;
-            out.Nite = Nite;
-            out.flg_cvg = flg_cvg;
-            out.intBay = intBay;
+        function x = SamGen(obj,Nsze)
+            x = obj.TF.Rdis.SamGen(Nsze);
         end
     end
 end

@@ -1,11 +1,11 @@
-# GSS-MIS: Enhanced Generalized Subset Simulation with Multiple Importance Sampling
+# GSS-MIS: Generalized Subset Simulation with Multiple Importance Sampling
 
 MATLAB implementation of **generalized subset simulation with multiple importance sampling (GSS-MIS)** for estimating small failure probabilities of multiple stochastic responses. This code accompanies the paper:
 
 > **Enhanced generalized subset simulation with multiple importance sampling for reliability estimation.**
 > Weili Xia and Zihan Liao. *Computers & Structures*, 313 (2025), 107741. doi: [10.1016/j.compstruc.2025.107741](https://doi.org/10.1016/j.compstruc.2025.107741)
 
-Related implementation: [Python](https://github.com/ZihanLiao-ZJU/Enhanced-generalized-Subset-Simulation-with-Multiple-Importance-Sampling-Python).
+Related implementation: [Python](https://github.com/ZihanLiao-ZJU/generalized-Subset-Simulation-with-Multiple-Importance-Sampling-Python).
 
 ## Contents
 
@@ -35,6 +35,10 @@ by constructing a sequence of intermediate union events:
 
 Intermediate membership is strictly `g < threshold`, and final failure is strictly `g < 0`. The conditional quantile probability is `p = 0.1`; MIS calculations use logarithmic weights for numerical stability.
 
+The common calling sequence is **distribution → sampler → SeMCS → estimator**. `SeMCS` owns the iteration loop; distribution classes define evaluations, intermediate thresholds and convergence; drivers select examples, seed repetitions and summarize results. `MIS` is a separate estimator, not a parent class.
+
+`SuS.m` and `SeMCS.m` are identical in both reliability toolboxes. The SuS drivers choose their numerical policy explicitly: GSS uses physical coordinates, midpoint thresholds and an unclipped terminal threshold; SeMIS uses standard-normal coordinates, Hazen quantiles and clipping at zero. The final failure event is always strictly `g < 0`.
+
 ## Requirements
 
 - MATLAB R2020b or later.
@@ -45,13 +49,13 @@ Intermediate membership is strictly `g < threshold`, and final failure is strict
 
 ```text
 .
-├── drive_GSS_MIS.m          % selected example and independent repetitions
-├── GSS_MIS.m                % generalized subset-simulation framework
-├── GSS_MIS_model.m          % intermediate events and seed selection
-├── MIS_Rel.m                % reliability estimator and normalization
-├── SuS.m                    % independent subset-simulation comparison
+├── drive_GSS_MIS.m          % GSS-MIS examples and independent repetitions
+├── drive_SuS.m              % scalar SuS examples and independent repetitions
+├── SeMCS.m                  % shared sequential sampling engine
+├── GSS_MIS.m                % standalone intermediate union distribution
+├── SuS.m                    % standalone scalar intermediate distribution
 ├── Limit-state-functions/   % numerical examples Ex1 and Ex2
-├── Support-Fun/             % CW_aMH, MIS weights and numerical utilities
+├── Support-Fun/             % CW_aMH, MIS estimator and numerical utilities
 ├── LICENSE
 └── README.md
 ```
@@ -64,11 +68,11 @@ Run the driver from the repository root; it adds the required subfolders to the 
 results = drive_GSS_MIS;
 ```
 
-By default this runs Example 1 with 100 independent repetitions and seed 2025. It prints mean failure probabilities, empirical CoV, and mean joint model calls. To select Example 2 or run SuS:
+By default this runs Example 1 with 100 independent repetitions and seed 2026. The returned structure contains probability summaries, empirical CoV and joint model calls. To select Example 2 or run SuS:
 
 ```matlab
-results = drive_GSS_MIS(2, 100, 2025);
-comparison = SuS(2, 100, 2025);
+results = drive_GSS_MIS(2, 410, 100, 2026);
+comparison = drive_SuS(2, 180, 100, 2026);
 ```
 
 Each repetition uses `seed + run - 1` with the `twister` generator. The SuS baseline adds `10000 * PF_index` to the seed for each independent performance function.
@@ -88,22 +92,17 @@ Only these two simple numerical examples are included. Integer chain lengths can
 
 1. Copy one of `Limit-state-functions/Ex*.m` and rename its class, for example `MyProblem`.
 2. Define `Ndim`, `Nfun`, and `Rdis`, and implement `g = EvlLSF(obj, X)`. Input samples have shape `[Ndim, Nsamples]`; the output has shape `[Nfun, Nsamples]`. Failure is `g < 0`.
-3. Follow the driver to construct `GSS_MIS_model(MyProblem)`, `CW_aMH(model)`, and `GSS_MIS(sampler)`, then set `NumSam` before calling `RunIte`.
+3. Follow the driver to construct `model = GSS_MIS(MyProblem)`, `sampler = CW_aMH(model)`, and `simulation = SeMCS(sampler)`, then set `NumSam` before calling `RunIte`.
 
 The supplied `Direct` distribution helper handles independent marginals. The built-in examples use independent standard-normal variables.
 
 ## Outputs
 
-| Output | Meaning |
-|---|---|
-| `Pf` | Per-performance-function probability estimates, one column per repetition |
-| `mean_Pf`, `std_Pf` | Mean and sample standard deviation across repetitions |
-| `CoV` | Empirical standard deviation divided by the mean |
-| `Ncal`, `mean_joint_evaluations` | Joint calls per repetition and their mean |
-| `converged` | Whether all response thresholds reached the final failure domain |
-| `termination_flag` | Separate original sampling-loop termination flag |
+All drivers return the same summary fields: `example`, `algorithm`, `N`, `repeats`, `seed`, `mean`, `standard_deviation`, `cov`, `mean_joint_calls`, `unfinished`, and `records`.
 
-The SuS result reports `mean_total_evaluations` for its summed independent chains. Unfinished runs are flagged and retained, not silently removed. Use at least two repetitions for an empirical CoV; this is not a single-run uncertainty bound.
+Each record contains `seed`, `probability`, `joint_calls`, `layer_joint_calls`, `actual_level_samples`, and `completed`. `unfinished` is the number of repetitions that did not reach the failure domain. `cov` is the empirical sample standard deviation divided by the mean; it is distinct from optional single-run uncertainty bounds. With one repetition, sample standard deviation and empirical CoV are returned as `NaN`.
+
+The intermediate sampling output from `SeMCS.RunIte` retains `x`, `y`, `g`, `Nsam`, `Nsze`, `Ncal`, `Nite`, `flg_cvg`, and the final distribution object `intBay`. GSS also retains the active response history `h`.
 
 ## Computational cost
 
@@ -115,10 +114,10 @@ The SuS baseline runs each performance function independently and sums the actua
 
 | Step | Code | Paper component |
 |---|---|---|
-| Intermediate union events and level sampling | `GSS_MIS.RunIte`, `GSS_MIS_model.UpdObj` | Generalized subset-simulation construction |
+| Intermediate union events and level sampling | `SeMCS.RunIte`, `GSS_MIS.UpdObj` | Generalized subset-simulation construction |
 | Component-wise Metropolis sampling | `Support-Fun/CW_aMH.m` | Conditional sampling within intermediate events |
-| Recursive normalizing constants | `MIS_Rel.EvlPf` | Intermediate importance-distribution normalization |
-| Balance-heuristic MIS estimator | `MIS_Rel.EvlPf`, `WgtMis_Blc`, `MisInt` | Combined failure-probability estimator, Eq. (18) |
+| Recursive normalizing constants | `MIS` | Intermediate importance-distribution normalization |
+| Balance-heuristic MIS estimator | `MIS`, `WgtMis_Blc`, `MisInt` | Combined failure-probability estimator, Eq. (18) |
 | Numerical benchmarks | `Ex1`, `Ex2` | First two numerical examples |
 
 ## Citation
@@ -144,3 +143,4 @@ Algorithm-specific references are included in the source: Li, Ma and Cao (2015) 
 ## License
 
 Licensed under the [MIT License](LICENSE).
+

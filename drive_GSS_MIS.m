@@ -1,40 +1,54 @@
-function results = drive_GSS_MIS(example, repetitions, seed)
-% DRIVE_GSS_MIS Run the two numerical GSS-MIS examples.
-% results = drive_GSS_MIS(example, repetitions, seed)
-% Defaults: example=1, repetitions=100, seed=2025.
-% Ex1 uses 440 samples per level; Ex2 uses 410. Conditional probability=.1.
-% Ncal is the number of joint performance-function vector evaluations.
-% Xia, W.; Liao, Z. (2025), Computers and Structures 313, 107741.
-% DOI: 10.1016/j.compstruc.2025.107741.
-if nargin<1, example=1; end
-if nargin<2, repetitions=100; end
-if nargin<3, seed=2025; end
-validateattributes(example,{'numeric'},{'scalar','integer','>=',1,'<=',2});
-validateattributes(repetitions,{'numeric'},{'scalar','integer','positive'});
-validateattributes(seed,{'numeric'},{'scalar','integer','nonnegative'});
-root=fileparts(mfilename('fullpath'));
-addpath(fullfile(root,'Limit-state-functions'));
-addpath(fullfile(root,'Support-Fun'));
-addpath(fullfile(root,'Support-Fun','Operations on Logarithmic values'));
-if example==1, Tfun=Ex1; N=440; else, Tfun=Ex2; N=410; end
-model=GSS_MIS_model(Tfun); sampler=CW_aMH(model);
-simulation=GSS_MIS(sampler); simulation.NumSam=N;
-pf=zeros(Tfun.Nfun,repetitions); ncal=zeros(1,repetitions);
-converged=false(1,repetitions); termination_flag=converged;
-for run=1:repetitions
-    rng(seed+run-1,'twister');
-    evalc('out=simulation.RunIte;');
-    [pf(:,run),ncal(run)]=model.EvlPf(out);
-    converged(run)=out.intBay.FlgCvg;
-    termination_flag(run)=out.flg_cvg;
+function results = drive_GSS_MIS(example, N, repeats, seed)
+% DRIVE_GSS_MIS Run GSS-MIS: distribution -> sampler -> SeMCS -> MIS.
+% results = drive_GSS_MIS(example, N, repeats, seed)
+% Defaults: example 1, N=440 (Ex1) / 410 (Ex2), 100 runs, seed 2026.
+% Ncal counts joint performance-function vector evaluations.
+if nargin < 1, example = 1; end
+if nargin < 2 || isempty(N)
+    if example == 1, N = 440; else, N = 410; end
 end
-results=struct('example',example,'samples_per_level',N,'seed',seed, ...
-    'Pf',pf,'Ncal',ncal,'converged',converged, ...
-    'termination_flag',termination_flag,'mean_Pf',mean(pf,2), ...
-    'std_Pf',std(pf,0,2),'CoV',std(pf,0,2)./mean(pf,2), ...
-    'mean_joint_evaluations',mean(ncal));
-fprintf('Example %d: %d runs; mean joint evaluations %.2f\n',example,repetitions,mean(ncal));
-fprintf('PF        Mean estimate          Empirical CoV\n');
-for j=1:Tfun.Nfun, fprintf('%2d        %.8g             %.6g\n',j,results.mean_Pf(j),results.CoV(j)); end
-if any(~converged), warning('GSS_MIS:Unconverged','%d runs did not reach all failure thresholds.',sum(~converged)); end
+if nargin < 3, repeats = 100; end
+if nargin < 4, seed = 2026; end
+validateattributes(example, {'numeric'}, {'scalar', 'integer', 'positive'});
+validateattributes(N, {'numeric'}, {'scalar', 'integer', 'positive'});
+validateattributes(repeats, {'numeric'}, {'scalar', 'integer', 'positive'});
+validateattributes(seed, {'numeric'}, {'scalar', 'integer', 'nonnegative'});
+root = fileparts(mfilename('fullpath'));
+addpath(fullfile(root, 'Limit-state-functions'));
+addpath(fullfile(root, 'Support-Fun'));
+addpath(fullfile(root, 'Support-Fun', 'Operations on Logarithmic values'));
+records = cell(1, repeats);
+assert(example <= 2, 'The toolbox provides examples 1 and 2.');
+algorithm = 'GSS-MIS';
+for run = 1:repeats
+    rng(seed + run - 1, 'twister');
+    if example == 1, PF = Ex1; else, PF = Ex2; end
+    model = GSS_MIS(PF);
+    sampler = CW_aMH(model);
+    simulation = SeMCS(sampler);
+    simulation.NumSam = N;
+    simulation.MaxIte = 1000;
+    simulation.Verbose = false;
+    out = simulation.RunIte;
+    mis = MIS(out);
+    probability = mis.Pf_hat;
+    records{run} = struct('seed', seed + run - 1, ...
+        'probability', probability, 'joint_calls', sum(out.Ncal), ...
+        'layer_joint_calls', out.Ncal, 'actual_level_samples', out.Nsam, ...
+        'completed', out.intBay.FlgCvg);
+end
+probabilities = cat(2, records{:});
+probabilities = cat(2, probabilities.probability);
+calls = cellfun(@(record) record.joint_calls, records);
+completed = cellfun(@(record) record.completed, records);
+sd = std(probabilities, 0, 2);
+if repeats < 2, sd(:) = NaN; end
+results = struct('example', example, 'algorithm', algorithm, 'N', N, ...
+    'repeats', repeats, 'seed', seed, 'mean', mean(probabilities, 2), ...
+    'standard_deviation', sd, ...
+    'cov', sd ./ mean(probabilities, 2), ...
+    'mean_joint_calls', mean(calls), 'unfinished', sum(~completed), ...
+    'records', {records});
+fprintf('%s example %d: %d runs, mean joint calls %.2f\n', ...
+    algorithm, example, repeats, results.mean_joint_calls);
 end

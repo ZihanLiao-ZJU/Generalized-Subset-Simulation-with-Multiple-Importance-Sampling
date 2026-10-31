@@ -29,7 +29,7 @@ classdef CW_aMH
             obj.Ndim = BayStc.Ndim;
         end
 
-        function [x,y,Ncal] = SamGen(obj,varargin)
+        function [x,y,Ncal,baystc] = SamGen(obj,varargin)
 
             baystc = obj.BayStc;
             sedsav = obj.SedSav || nargin<=3;
