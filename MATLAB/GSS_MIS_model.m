@@ -1,0 +1,97 @@
+% GSS_MIS_MODEL Union-indicator model with independent input marginals.
+% G: performance thresholds; H: active performance functions.
+% Failure and intermediate support use strict g < threshold.
+% Quantiles are computed separately for each performance function.
+% A response is removed from the active union once its threshold reaches zero.
+% Constructor: model = GSS_MIS_model(Tfun).
+% Xia, W.; Liao, Z. (2025), Enhanced generalized subset simulation with
+% multiple importance sampling for reliability estimation. Computers and
+% Structures 313, 107741. DOI: 10.1016/j.compstruc.2025.107741.
+classdef GSS_MIS_model < MIS_Rel
+    properties
+        G = inf;
+        H = true;
+    end
+
+    properties(Dependent)
+        FlgCvg
+    end
+
+    methods
+        function obj = GSS_MIS_model(Tfun)
+            obj@MIS_Rel(Tfun);
+        end
+        function Li = EvlLKF(obj)
+            y = obj.Y;
+            f = y(2:end,:);
+            g = obj.G;
+            h = obj.H;
+            ind = f<g;
+            ind = any(ind(h,:),1);
+            Li = log(double(ind));
+        end
+
+        function Pi = EvlPDF(obj,varargin)
+            if nargin>1
+                idim = varargin{1};
+                x = obj.X;
+                Pi = obj.Tfun.Rdis.EvlPDF(x,idim);
+            else
+                y = obj.Y;
+                if ~isempty(y)
+                    q = y(1,:);
+                    Pi = q;
+                else
+                    x = obj.X;
+                    Pi = obj.Tfun.Rdis.EvlPDF(x);
+                end
+            end
+        end
+
+        function [g,h,obj] = UpdObj(obj,y,p)
+
+            f = y(4:end,:);
+            g = max(quantile(f,p,2),0);
+
+            h = obj.H & g>0;
+
+            obj.G = g;
+            obj.H = h;
+        end
+
+        function [x_sed,y_sed] = SltSed(obj,x,y,Nsam)
+
+            f = y(4:end,:);
+            g = obj.G;
+            h = obj.H;
+            Ns = round(Nsam./(1:Nsam));
+            Nsed = round(Nsam./Ns);
+            ind_sed = f<g;
+            ind_sed = any(ind_sed(h,:),1);
+            x_sed_can = x(:,ind_sed);
+            y_sed_can = y(:,ind_sed);
+            Nsed_can = sum(ind_sed,"all");
+            Nsed = Nsed(find(Nsed_can-Nsed>=0,1,"last"));
+            if Nsed_can>=Nsed
+                randind = randperm(Nsed_can,Nsed);
+            elseif Nsed_can>0
+                randind = randi(Nsed_can,1,Nsed);
+            else
+                randind = [];
+            end
+            x_sed = x_sed_can(:,randind);
+            y_sed = y_sed_can(:,randind);
+            if ~isempty(y_sed)
+                y_sed = obj.UpdY(y_sed);
+            end
+        end
+
+        function FlgCvg = get.FlgCvg(obj)
+            FlgCvg = ~any(obj.H);
+        end
+
+        function x = SamGen(obj,Nsze)
+            x = obj.Tfun.Rdis.SamGen(Nsze);
+        end
+    end
+end
