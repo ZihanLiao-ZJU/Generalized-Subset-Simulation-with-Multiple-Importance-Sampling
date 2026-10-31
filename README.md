@@ -1,125 +1,146 @@
 # GSS-MIS: Enhanced Generalized Subset Simulation with Multiple Importance Sampling
 
-MATLAB and Python implementations of **generalized subset simulation with multiple importance sampling (GSS-MIS)** for estimating the failure probabilities of multiple performance functions. This repository accompanies:
+MATLAB implementation of **generalized subset simulation with multiple importance sampling (GSS-MIS)** for estimating small failure probabilities of multiple stochastic responses. This code accompanies the paper:
 
-> Weili Xia and Zihan Liao (2025). **Enhanced generalized subset simulation with multiple importance sampling for reliability estimation.** *Computers & Structures*, 313, 107741. [doi:10.1016/j.compstruc.2025.107741](https://doi.org/10.1016/j.compstruc.2025.107741).
+> **Enhanced generalized subset simulation with multiple importance sampling for reliability estimation.**
+> Weili Xia and Zihan Liao. *Computers & Structures*, 313 (2025), 107741. doi: [10.1016/j.compstruc.2025.107741](https://doi.org/10.1016/j.compstruc.2025.107741)
+
+Related implementation: [Python](https://github.com/ZihanLiao-ZJU/Enhanced-generalized-Subset-Simulation-with-Multiple-Importance-Sampling-Python).
+
+## Contents
+
+- [Overview](#overview)
+- [Requirements](#requirements)
+- [Repository structure](#repository-structure)
+- [Quick start](#quick-start)
+- [Built-in examples](#built-in-examples)
+- [Using a custom performance function](#using-a-custom-performance-function)
+- [Outputs](#outputs)
+- [Computational cost](#computational-cost)
+- [Code-to-paper mapping](#code-to-paper-mapping)
+- [Tests](#tests)
+- [Citation](#citation)
+- [License](#license)
 
 ## Overview
 
-The method constructs adaptive intermediate union events, samples each event with component-wise Metropolis MCMC, and combines samples from all levels using the balance-heuristic multiple importance sampling estimator. Both intermediate membership and final failure use the strict inequality **`g < threshold`** and **`g < 0`**, respectively. Historical thresholds, active performance functions, and realized level sample counts are retained for MIS weighting.
+GSS-MIS estimates the failure probabilities
 
-The MCMC proposals are uniform component-wise increments, scaled by the sample standard deviation of the current seeds. The conditional quantile probability is `p = 0.1`. The initial samples are independent standard normal; subsequent levels do not retain seeds as an extra initial chain step.
+$$p_{f,j}=P\{g_j(\mathbf X)<0\}=\int f_{\mathbf X}(\mathbf x)\,I_{\{g_j(\mathbf x)<0\}}\,\mathrm d\mathbf x$$
 
-## Repository structure
+by constructing a sequence of intermediate union events:
 
-The layout and naming follow the related [SeMIS repository](https://github.com/ZihanLiao-ZJU/Sequential-multiple-importance-sampling-for-Reliability-Estimation). Each language contains only the first two simple numerical examples.
+1. Performance-function quantiles define adaptive thresholds, and responses that reach the final failure threshold are removed from the active union.
+2. Component-wise Metropolis MCMC generates samples in each intermediate event. Uniform proposal increments are scaled by the sample standard deviation of the current seeds.
+3. Samples from all levels are combined with the balance-heuristic multiple importance sampling estimator. Historical thresholds, active responses, and actual level sample counts are retained in the weights.
 
-```text
-MATLAB/
-  drive_GSS_MIS.m              Experiment driver
-  GSS_MIS.m                   Generalized subset simulation
-  GSS_MIS_model.m             Intermediate union events and seed selection
-  MIS_Rel.m                   Reliability estimator
-  SuS.m                       Independent subset-simulation comparison
-  Limit-state-functions/      Ex1 and Ex2
-  Support-Fun/                MCMC, MIS weights, and numerical helpers
-Python/
-  drive_GSS_MIS.py             Experiment driver and command-line interface
-  GSS_MIS.py                   Generalized subset simulation
-  GSS_MIS_model.py             Intermediate events and sample records
-  MIS_Rel.py                  Balance-heuristic MIS estimator
-  SuS.py                      Independent subset-simulation comparison
-  Limit_state_functions/      Ex1 and Ex2
-  Support_Fun/                MCMC, random draws, and numerical helpers
-  tests/                      Numerical conventions and counting tests
-```
-
-Python package directory names use underscores so they can be imported normally. MATLAB numerical helpers that are shared with SeMIS are kept byte-for-byte identical; see [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+Intermediate membership is strictly `g < threshold`, and final failure is strictly `g < 0`. The conditional quantile probability is `p = 0.1`; MIS calculations use logarithmic weights for numerical stability.
 
 ## Requirements
-
-### MATLAB
 
 - MATLAB R2020b or later.
 - Statistics and Machine Learning Toolbox (`makedist`, `quantile`).
 - No Parallel Computing Toolbox is required.
 
-### Python
+## Repository structure
 
-- Python 3.10 or later.
-- NumPy 1.22 or later.
-
-```bash
-cd Python
-python -m pip install -r requirements.txt
+```text
+.
+├── drive_GSS_MIS.m          % selected example and independent repetitions
+├── GSS_MIS.m                % generalized subset-simulation framework
+├── GSS_MIS_model.m          % intermediate events and seed selection
+├── MIS_Rel.m                % reliability estimator and normalization
+├── SuS.m                    % independent subset-simulation comparison
+├── Limit-state-functions/   % numerical examples Ex1 and Ex2
+├── Support-Fun/             % CW_aMH, MIS weights and numerical utilities
+├── test_GSS_MIS.m           % benchmark and estimator checks
+├── LICENSE
+└── README.md
 ```
 
 ## Quick start
 
-### MATLAB
-
-From the `MATLAB` directory:
+Run the driver from the repository root; it adds the required subfolders to the MATLAB path:
 
 ```matlab
-result1 = drive_GSS_MIS(1, 100, 2026);
-result2 = drive_GSS_MIS(2, 100, 2026);
-comparison = SuS(2, 100, 2026);
+results = drive_GSS_MIS;
 ```
 
-### Python
+By default this runs Example 1 with 100 independent repetitions and seed 2025. It prints mean failure probabilities, empirical CoV, and mean joint model calls. To select Example 2 or run SuS:
 
-From the `Python` directory:
-
-```bash
-python drive_GSS_MIS.py --example 1 --repeats 100
-python drive_GSS_MIS.py --example 2 --repeats 100 --output results_ex2.json
-python drive_GSS_MIS.py --example 2 --algorithm SuS --repeats 100
+```matlab
+results = drive_GSS_MIS(2, 100, 2025);
+comparison = SuS(2, 100, 2025);
 ```
 
-Or call the driver directly:
+Each repetition uses `seed + run - 1` with the `twister` generator. The SuS baseline adds `10000 * PF_index` to the seed for each independent performance function.
 
-```python
-from drive_GSS_MIS import drive_GSS_MIS
-result = drive_GSS_MIS(example=1, N=440, repeats=100, seed=2026)
-print(result["mean"], result["cov"], result["mean_joint_calls"])
-```
+## Built-in examples
 
-Default per-level sample sizes are **440 / 410 for GSS-MIS** and **240 / 180 for the separate SuS comparisons**, for Examples 1 / 2. Integer chain lengths may yield a realized level sample count slightly different from the requested value. The estimator uses the realized counts. Set repetitions to at least two to calculate an empirical CoV.
+The two numerical examples correspond to the first two examples in the paper. Both use independent standard-normal inputs and samples arranged in a `2 × n` array.
 
-The languages use their respective random-number generators: the same numerical seed is not intended to produce identical MATLAB and Python trajectories.
+| Example | Description | Dimension | Performance functions | GSS-MIS samples/level | SuS samples/level |
+|---|---|---|---|---|---|
+| `Ex1` | Two circular failure regions, radius 0.1, centered at `(0, 0)` and `(0.4, 0.4)` | 2 | 2 | 440 | 240 |
+| `Ex2` | Two quadratic and two linear boundaries, in the paper's equation order | 2 | 4 | 410 | 180 |
 
-## Numerical examples
+Only these two simple numerical examples are included. Integer chain lengths can change the realized number of samples in a level slightly; the MIS estimator uses the realized counts.
 
-Both examples have two independent standard-normal inputs and accept samples in a `2 × n` array.
+## Using a custom performance function
 
-- **Example 1:** two circular failure regions with radius 0.1 and centers `(0, 0)` and `(0.4, 0.4)`.
-- **Example 2:** four performance functions comprising two quadratic boundaries and two linear boundaries, ordered as in the paper.
+1. Copy one of `Limit-state-functions/Ex*.m` and rename its class, for example `MyProblem`.
+2. Define `Ndim`, `Nfun`, and `Rdis`, and implement `g = EvlLSF(obj, X)`. Input samples have shape `[Ndim, Nsamples]`; the output has shape `[Nfun, Nsamples]`. Failure is `g < 0`.
+3. Follow the driver to construct `GSS_MIS_model(MyProblem)`, `CW_aMH(model)`, and `GSS_MIS(sampler)`, then set `NumSam` before calling `RunIte`.
 
-Outputs contain one failure probability per performance function. No vibration examples, structural-response solvers, datasets, or pretrained models are included.
+The supplied `Direct` distribution helper handles independent marginals. The built-in examples use independent standard-normal variables.
 
-## Outputs and computational cost
+## Outputs
 
-The drivers retain all repetitions and summarize mean probability, sample standard deviation, empirical CoV, completion status, and model-evaluation counts. An unfinished run is reported explicitly rather than silently removed. Empirical CoV is the sample standard deviation across repetitions divided by their mean; it is not a single-run error bound.
+| Output | Meaning |
+|---|---|
+| `Pf` | Per-performance-function probability estimates, one column per repetition |
+| `mean_Pf`, `std_Pf` | Mean and sample standard deviation across repetitions |
+| `CoV` | Empirical standard deviation divided by the mean |
+| `Ncal`, `mean_joint_evaluations` | Joint calls per repetition and their mean |
+| `converged` | Whether all response thresholds reached the final failure domain |
+| `termination_flag` | Separate original sampling-loop termination flag |
 
-**One evaluation of the complete performance-function vector at one sample point counts as one joint model call.** Rejected candidates that were evaluated count as calls; unchanged candidates whose stored values are reused do not. MIS post-processing reuses evaluated values. For SuS, the independently evaluated single-performance-function chains are counted separately and their actual calls are summed.
+The SuS result reports `mean_total_evaluations` for its summed independent chains. Unfinished runs are flagged and retained, not silently removed. Use at least two repetitions for an empirical CoV; this is not a single-run uncertainty bound.
+
+## Computational cost
+
+**One evaluation of the complete performance-function vector at one input point counts as one joint model call.** Evaluated rejected candidates count; unchanged candidates whose values are reused do not. MIS post-processing uses already stored values.
+
+The SuS baseline runs each performance function independently and sums the actual calls from those separate chains. Its total is not divided by the number of performance functions.
+
+## Code-to-paper mapping
+
+| Step | Code | Paper component |
+|---|---|---|
+| Intermediate union events and level sampling | `GSS_MIS.RunIte`, `GSS_MIS_model.UpdObj` | Generalized subset-simulation construction |
+| Component-wise Metropolis sampling | `Support-Fun/CW_aMH.m` | Conditional sampling within intermediate events |
+| Recursive normalizing constants | `MIS_Rel.EvlPf` | Intermediate importance-distribution normalization |
+| Balance-heuristic MIS estimator | `MIS_Rel.EvlPf`, `WgtMis_Blc`, `MisInt` | Combined failure-probability estimator, Eq. (18) |
+| Numerical benchmarks | `Ex1`, `Ex2` | First two numerical examples |
 
 ## Tests
 
-Python:
-
-```bash
-cd Python
-python -m unittest discover -s tests -v
+```matlab
+test_GSS_MIS
 ```
 
-The tests cover the numerical examples, strict event membership, rounding and quantile conventions, seed allocation, nonfinite log-domain behavior, and joint-call accounting. The implementations also have trajectory-level regression checks against the source algorithm. MATLAB preparation checks were executed using GNU Octave 9.4 with a compatibility harness; this is not a claim of native MATLAB execution.
+Checks cover benchmark definitions, a one-level MIS estimate, and joint-call accounting.
 
 ## Citation
 
+If you use this code in your research, please cite:
+
+> Xia, W., & Liao, Z. (2025). Enhanced generalized subset simulation with multiple importance sampling for reliability estimation. *Computers & Structures*, 313, 107741. https://doi.org/10.1016/j.compstruc.2025.107741
+
 ```bibtex
-@article{XiaLiao2025GSSMIS,
-  author  = {Xia, Weili and Liao, Zihan},
+@article{xia2025enhanced,
   title   = {Enhanced generalized subset simulation with multiple importance sampling for reliability estimation},
+  author  = {Xia, Weili and Liao, Zihan},
   journal = {Computers & Structures},
   volume  = {313},
   pages   = {107741},
@@ -128,8 +149,10 @@ The tests cover the numerical examples, strict event membership, rounding and qu
 }
 ```
 
-Algorithm-specific references are included next to the corresponding implementation: generalized subset simulation (Li, Ma and Cao, 2015), subset simulation (Au and Beck, 2001), and the balance heuristic (Veach and Guibas, 1995).
+Algorithm-specific references are included in the source: Li, Ma and Cao (2015) for generalized subset simulation and numerical benchmarks; Au and Beck (2001) for subset simulation; Veach and Guibas (1995) for the balance heuristic.
 
 ## License
 
-The authors' implementation is provided under the [MIT License](LICENSE). Reused SeMIS files retain its [MIT notice](LICENSE-SeMIS); Mo Chen's numerical utilities and derivatives retain their [BSD notice](LICENSE-Mo-Chen). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for scope and attribution.
+This project retains the authors' [MIT License](LICENSE). Shared SeMIS helpers retain their [MIT notice](Support-Fun/LICENSE-SeMIS); numerical utilities retain the [Mo Chen BSD notice](Support-Fun/LICENSE-Mo-Chen). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+`DspRst.m`, `VabSrk.m`, `MisInt.m`, `logmean.m`, and `logsum.m` are byte-identical to the corresponding files in the [SeMIS reliability repository](https://github.com/ZihanLiao-ZJU/Sequential-multiple-importance-sampling-for-Reliability-Estimation), revision `dc227892d7c202ac7c3974b9e83135d69e102cc5`. Equation numbers in those shared-file comments refer to their original SeMIS context.

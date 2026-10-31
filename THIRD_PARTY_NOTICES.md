@@ -1,6 +1,9 @@
 # Attribution and notices
 
-- The GSS-MIS source implementation is by Zihan Liao and accompanies Weili Xia and Zihan Liao (2025), DOI 10.1016/j.compstruc.2025.107741. Its original MIT copyright notice (2022 Zihan Liao) is retained in `LICENSE`. The Python implementation is a translation of the same numerical algorithm.
-- `DspRst.m`, `VabSrk.m`, `MisInt.m`, `logmean.m`, and `logsum.m` are reused without byte changes from `ZihanLiao-ZJU/Sequential-multiple-importance-sampling-for-Reliability-Estimation`, revision `dc227892d7c202ac7c3974b9e83135d69e102cc5`. Its MIT notice (2026 Zihan Liao) is retained in `LICENSE-SeMIS`. Existing source comments and references are retained; equation numbers in those shared routines refer to their original SeMIS context.
-- The supplied support-function collection includes Mo Chen's numerical utilities. The original BSD-style notice (2016 Mo Chen) is retained in `LICENSE-Mo-Chen` for the log-domain routines and derivatives, including the corresponding Python log-sum helper. This notice is additional to, not replaced by, the authors' MIT license.
-- NumPy is an external dependency and is not vendored in this repository. MATLAB and its toolboxes are external software and are not redistributed.
+The authors' source implementation retains its original MIT notice (2022 Zihan Liao) in `LICENSE`.
+
+`DspRst.m`, `VabSrk.m`, `MisInt.m`, `logmean.m`, and `logsum.m` are reused without byte changes from `ZihanLiao-ZJU/Sequential-multiple-importance-sampling-for-Reliability-Estimation`, revision `dc227892d7c202ac7c3974b9e83135d69e102cc5`. Its MIT notice (2026 Zihan Liao) is retained in `Support-Fun/LICENSE-SeMIS`. Existing source comments and citations are preserved; equation numbers in those shared files refer to their original SeMIS context.
+
+The supplied numerical utility collection includes Mo Chen's logarithmic routines. Their BSD-style notice (2016 Mo Chen) is retained in `Support-Fun/LICENSE-Mo-Chen`, in addition to the authors' MIT license.
+
+MATLAB and its toolboxes are external software and are not redistributed.
