@@ -18,7 +18,6 @@ Related implementation: [Python](https://github.com/ZihanLiao-ZJU/Enhanced-gener
 - [Outputs](#outputs)
 - [Computational cost](#computational-cost)
 - [Code-to-paper mapping](#code-to-paper-mapping)
-- [Tests](#tests)
 - [Citation](#citation)
 - [License](#license)
 
@@ -53,7 +52,6 @@ Intermediate membership is strictly `g < threshold`, and final failure is strict
 ├── SuS.m                    % independent subset-simulation comparison
 ├── Limit-state-functions/   % numerical examples Ex1 and Ex2
 ├── Support-Fun/             % CW_aMH, MIS weights and numerical utilities
-├── test_GSS_MIS.m           % benchmark and estimator checks
 ├── LICENSE
 └── README.md
 ```
@@ -122,14 +120,6 @@ The SuS baseline runs each performance function independently and sums the actua
 | Recursive normalizing constants | `MIS_Rel.EvlPf` | Intermediate importance-distribution normalization |
 | Balance-heuristic MIS estimator | `MIS_Rel.EvlPf`, `WgtMis_Blc`, `MisInt` | Combined failure-probability estimator, Eq. (18) |
 | Numerical benchmarks | `Ex1`, `Ex2` | First two numerical examples |
-
-## Tests
-
-```matlab
-test_GSS_MIS
-```
-
-Checks cover benchmark definitions, a one-level MIS estimate, and joint-call accounting.
 
 ## Citation
 
