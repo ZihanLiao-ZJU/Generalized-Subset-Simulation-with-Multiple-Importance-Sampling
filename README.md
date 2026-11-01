@@ -1,6 +1,6 @@
-# GSS-MIS: Generalized Subset Simulation with Multiple Importance Sampling
+# GSuS-MIS: Generalized Subset Simulation with Multiple Importance Sampling
 
-MATLAB implementation of **generalized subset simulation with multiple importance sampling (GSS-MIS)** for estimating small failure probabilities of multiple stochastic responses. This code accompanies the paper:
+MATLAB implementation of **generalized subset simulation with multiple importance sampling (GSuS-MIS)** for estimating small failure probabilities of multiple stochastic responses. This code accompanies the paper:
 
 > **Enhanced generalized subset simulation with multiple importance sampling for reliability estimation.**
 > Weili Xia and Zihan Liao. *Computers & Structures*, 313 (2025), 107741. doi: [10.1016/j.compstruc.2025.107741](https://doi.org/10.1016/j.compstruc.2025.107741)
@@ -23,7 +23,7 @@ Related implementation: [Python](https://github.com/ZihanLiao-ZJU/Generalized-Su
 
 ## Overview
 
-GSS-MIS estimates the failure probabilities
+GSuS-MIS estimates the failure probabilities
 
 $$p_{f,j}=P\{g_j(\mathbf X)<0\}=\int f_{\mathbf X}(\mathbf x)\,I_{\{g_j(\mathbf x)<0\}}\,\mathrm d\mathbf x$$
 
@@ -37,7 +37,7 @@ Intermediate membership is strictly `g < threshold`, and final failure is strict
 
 The common calling sequence is **distribution → sampler → SeMCS → estimator**. `SeMCS` owns the iteration loop; distribution classes define evaluations, intermediate thresholds and convergence; drivers select examples, seed repetitions and summarize results. `MIS` is a separate estimator, not a parent class.
 
-`SuS.m` and `SeMCS.m` are identical in both reliability toolboxes. The SuS drivers choose their numerical policy explicitly: GSS uses physical coordinates, midpoint thresholds and an unclipped terminal threshold; SeMIS uses standard-normal coordinates, Hazen quantiles and clipping at zero. The final failure event is always strictly `g < 0`.
+`SuS.m` and `SeMCS.m` are identical in both reliability toolboxes. The SuS drivers choose their numerical policy explicitly: GSuS uses physical coordinates, midpoint thresholds and an unclipped terminal threshold; SeMIS uses standard-normal coordinates, Hazen quantiles and clipping at zero. The final failure event is always strictly `g < 0`.
 
 ## Requirements
 
@@ -49,7 +49,7 @@ The common calling sequence is **distribution → sampler → SeMCS → estimato
 
 ```text
 .
-├── drive_GSS_MIS.m          % GSS-MIS examples and independent repetitions
+├── drive_GSS_MIS.m          % GSuS-MIS examples and independent repetitions
 ├── drive_SuS.m              % scalar SuS examples and independent repetitions
 ├── SeMCS.m                  % shared sequential sampling engine
 ├── GSS_MIS.m                % standalone intermediate union distribution
@@ -81,7 +81,7 @@ Each repetition uses `seed + run - 1` with the `twister` generator. The SuS base
 
 The two numerical examples correspond to the first two examples in the paper. Both use independent standard-normal inputs and samples arranged in a `2 × n` array.
 
-| Example | Description | Dimension | Performance functions | GSS-MIS samples/level | SuS samples/level |
+| Example | Description | Dimension | Performance functions | GSuS-MIS samples/level | SuS samples/level |
 |---|---|---|---|---|---|
 | `Ex1` | Two circular failure regions, radius 0.1, centered at `(0, 0)` and `(0.4, 0.4)` | 2 | 2 | 440 | 240 |
 | `Ex2` | Two quadratic and two linear boundaries, in the paper's equation order | 2 | 4 | 410 | 180 |
@@ -102,7 +102,7 @@ All drivers return the same summary fields: `example`, `algorithm`, `N`, `repeat
 
 Each record contains `seed`, `probability`, `joint_calls`, `layer_joint_calls`, `actual_level_samples`, and `completed`. `unfinished` is the number of repetitions that did not reach the failure domain. `cov` is the empirical sample standard deviation divided by the mean; it is distinct from optional single-run uncertainty bounds. With one repetition, sample standard deviation and empirical CoV are returned as `NaN`.
 
-The intermediate sampling output from `SeMCS.RunIte` retains `x`, `y`, `g`, `Nsam`, `Nsze`, `Ncal`, `Nite`, `flg_cvg`, and the final distribution object `intBay`. GSS also retains the active response history `h`.
+The intermediate sampling output from `SeMCS.RunIte` retains `x`, `y`, `g`, `Nsam`, `Nsze`, `Ncal`, `Nite`, `flg_cvg`, and the final distribution object `intBay`. GSuS also retains the active response history `h`.
 
 ## Computational cost
 
@@ -175,7 +175,7 @@ supplied benchmark formulas retain their documented dimensions. Interface and
 smoke checks do not establish statistical reproduction of every paper result.
 
 
-GSS now samples and stores Gaussian coordinates `u` in every kernel. `Direct.U2X`
+GSuS now samples and stores Gaussian coordinates `u` in every kernel. `Direct.U2X`
 maps these into physical independent marginals before calling the performance
 function; transform returned samples with that method when physical coordinates
 are required. MATLAB accepts its original probability-distribution objects;
