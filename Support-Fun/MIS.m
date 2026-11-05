@@ -13,12 +13,10 @@ classdef MIS
             Nlsf = model.TF.Nfun;
             y = in.y;
             g = in.g;
-            h = in.h;
 
             c = zeros(Nite,1);
             for ite = 1:Nite-1
                 model.G = g{ite+1};
-                model.H = h{ite+1};
                 yi = y{ite};
                 model.Y = yi(3:end,:);
                 pi = model.EvlPDF;
@@ -31,7 +29,7 @@ classdef MIS
                 y{ite+1}(1,:) = y{ite+1}(1,:)-c(ite+1);
             end
 
-            w_mis = WgtMis_Blc(model,g,h,c,y);
+            w_mis = WgtMis_Blc(model,g,c,y);
 
             Pf = zeros(Nlsf,1);
             for ilsf = 1:Nlsf

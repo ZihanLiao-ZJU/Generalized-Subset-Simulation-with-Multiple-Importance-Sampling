@@ -1,5 +1,5 @@
 % WGTMIS_BLC Balance-heuristic log weights for all sampled proposal levels.
-% Inputs: model, stored thresholds G, active masks H, log normalizers C,
+% Inputs: model, stored threshold/active states G, log normalizers C,
 % and packed normalized sample outputs Y. Supports unequal level sizes.
 % Returns one [Nchains,Nsteps] log-weight array for each level.
 % Veach, E.; Guibas, L.J. (1995), SIGGRAPH 95, 419-428.
@@ -7,7 +7,7 @@
 % Xia, W.; Liao, Z. (2025), Enhanced generalized subset simulation with
 % multiple importance sampling for reliability estimation. Computers and
 % Structures 313, 107741. DOI: 10.1016/j.compstruc.2025.107741.
-function w_mis = WgtMis_Blc(intBay,g,h,c,y)
+function w_mis = WgtMis_Blc(intBay,g,c,y)
 
 beta = 1;
 Nite = length(y);
@@ -24,7 +24,6 @@ for ite = 1:Nite
     pdf_crs = zeros(Nite,Nsam(ite));
     for ite1 = 1:Nite
         intBay.G = g{ite1};
-        intBay.H = h{ite1};
         intBay.Y = y{ite}(3:end,:);
         pdf_crs(ite1,:) = intBay.EvlLKF+intBay.EvlPDF-c(ite1);
     end
