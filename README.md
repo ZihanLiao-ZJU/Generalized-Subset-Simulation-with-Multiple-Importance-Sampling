@@ -55,7 +55,9 @@ The common calling sequence is **distribution → sampler → SeMCS → estimato
 ├── GSS_MIS.m                % standalone intermediate union distribution
 ├── SuS.m                    % standalone scalar intermediate distribution
 ├── Limit-state-functions/   % numerical examples Ex1 and Ex2
-├── Support-Fun/             % CW_aMH, MIS estimator and numerical utilities
+├── MCMC-samplers/           % CW_aMH, aCS, ES, HMC and the common MCMC interface
+├── Support-Fun/             % MIS estimator and numerical utilities
+├── Operations on Logarithmic values/  % log-domain arithmetic
 ├── LICENSE
 └── README.md
 ```
@@ -115,7 +117,7 @@ The SuS baseline runs each performance function independently and sums the actua
 | Step | Code | Paper component |
 |---|---|---|
 | Intermediate union events and level sampling | `SeMCS.RunIte`, `GSS_MIS.UpdObj` | Generalized subset-simulation construction |
-| Component-wise Metropolis sampling | `Support-Fun/CW_aMH.m` | Conditional sampling within intermediate events |
+| Component-wise Metropolis sampling | `MCMC-samplers/CW_aMH.m` | Conditional sampling within intermediate events |
 | Recursive normalizing constants | `MIS` | Intermediate importance-distribution normalization |
 | Balance-heuristic MIS estimator | `MIS`, `WgtMis_Blc`, `MisInt` | Combined failure-probability estimator, Eq. (18) |
 | Numerical benchmarks | `Ex1`, `Ex2` | First two numerical examples |
