@@ -145,10 +145,6 @@ classdef GSS_MIS
             context.sampler.BayStc = context.model;
         end
 
-        function [context, record] = sample_level(~, context, level)
-            [context, record] = SeMCS.sample_context(context, level);
-        end
-
         function context = advance_level(~, context, record, level)
             if level + 1 <= numel(context.owner.G)
                 active = context.model.G.active;
