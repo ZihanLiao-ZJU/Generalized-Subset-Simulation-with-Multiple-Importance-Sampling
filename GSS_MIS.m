@@ -8,6 +8,10 @@
 % multiple importance sampling for reliability estimation. Computers and
 % Structures 313, 107741. DOI: 10.1016/j.compstruc.2025.107741.
 classdef GSS_MIS
+    properties (Constant)
+        RunOptions = struct('PreserveStateFields', {{'active'}})
+    end
+
     properties
         TF
         Ncal = 0;
@@ -120,81 +124,5 @@ classdef GSS_MIS
         function x = SamGen(obj,Nsze)
             x = randn(obj.Ndim,Nsze);
         end
-    end
-    methods
-
-        function defaults = run_defaults(obj)
-            defaults = struct('NumSam', 1000, 'ConPrb', 0.1, 'MaxIte', 10000, 'Verbose', true);
-            if isprop(obj, 'Nsam')
-                defaults.NumSam = obj.Nsam;
-            end
-
-            if isfield(obj.G, 'p')
-                defaults.ConPrb = obj.G.p;
-            end
-        end
-
-        function context = start_run(~, owner, sampler)
-            active = owner.IntBay.G.active;
-            context = SeMCS.start_context(owner, sampler, owner.MaxIte - 1, 'replace');
-            if ~isfield(context.model.G, 'active')
-                context.model.G.active = active;
-            end
-
-            context.g{1} = context.model.G;
-            context.sampler.BayStc = context.model;
-        end
-
-        function context = advance_level(~, context, record, level)
-            if level + 1 <= numel(context.owner.G)
-                active = context.model.G.active;
-                context.model.G = SeMCS.prescribed_state(context.model.G, context.owner.G{level+1}, false, 'replace');
-                if ~isfield(context.model.G, 'active')
-                    context.model.G.active = active;
-                end
-
-                extra = 0;
-            else
-                [context.y{level}, ~, context.model, extra] = context.model.UpdObj(record.x, record.y, context.owner.ConPrb);
-            end
-
-            context.Ncal(level) = context.Ncal(level) + extra;
-            context.g{level+1, 1} = context.model.G;
-            context.sampler.BayStc = context.model;
-        end
-
-        function context = select_run_seeds(~, context, record, level)
-            if context.targets(level + 1) <= 0
-                error('SeMCS:ScheduleExhausted', 'Sample budget exhausted before seed selection.');
-            end
-
-            target = context.targets(level + 1);
-            [context.xs, context.ys] = context.model.SltSed(record.x, context.y{level}, target);
-            context.nc = size(context.xs, 2);
-            context.steps = round(target / context.nc);
-            if context.owner.Verbose
-                fprintf('Level %d: N=%d, chains=%d, steps=%d, calls=%d\n', level, record.count, record.shape(1), record.shape(2), context.Ncal(level));
-            end
-        end
-
-        function [yes, context] = run_complete(~, context, ~, phase)
-            yes = false;
-            if ~strcmp(phase, 'after_seeds')
-                return;
-            end
-
-            if context.nc <= 0 || numel(context.x) == context.limit
-                yes = true;
-                return;
-            end
-
-            context.complete = context.model.FlgCvg;
-            yes = context.complete;
-        end
-
-        function out = finish_run(~, context)
-            out = SeMCS.pack_output(context);
-        end
-
     end
 end
