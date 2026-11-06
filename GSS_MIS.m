@@ -8,10 +8,6 @@
 % multiple importance sampling for reliability estimation. Computers and
 % Structures 313, 107741. DOI: 10.1016/j.compstruc.2025.107741.
 classdef GSS_MIS
-    properties (Constant)
-        RunOptions = struct('PreserveStateFields', {{'active'}})
-    end
-
     properties
         TF
         Ncal = 0;
@@ -90,7 +86,7 @@ classdef GSS_MIS
             N_cal = 0;
         end
 
-        function [x_sed,y_sed] = SltSed(obj,x,y,Nsam)
+        function [x_sed,y_sed] = SedSlt(obj,x,y,Nsam)
 
             f = y(4:end,:);
             g = obj.G.parameters;

@@ -70,6 +70,8 @@ Fixed MCMC settings, including initial step sizes, acceptance targets, adaptatio
 
 ## Quick start
 
+Set `MaxIte` to the maximum number of sampled levels. A scalar `NumSam` is reused; a vector is a finite per-level budget. The run returns when either limit is reached, and `flg_cvg` reports the method's own convergence criterion. Entries in `G` patch intermediate states; omitted fields and carried `lambda`/`HMC_time` are retained.
+
 Run the driver from the repository root; it adds the required subfolders to the MATLAB path:
 
 ```matlab
@@ -105,6 +107,8 @@ Only these two simple numerical examples are included. Integer chain lengths can
 The supplied `Direct` distribution helper handles independent marginals. The built-in examples use independent standard-normal variables.
 
 ## Outputs
+
+The raw sampling history `g` contains `Nite` sampled states followed by one final candidate state. `Nsze` records the chain and step counts at each sampled level.
 
 All drivers return the same summary fields: `example`, `algorithm`, `N`, `repeats`, `seed`, `mean`, `standard_deviation`, `cov`, `mean_joint_calls`, `unfinished`, and `records`.
 
