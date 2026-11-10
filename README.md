@@ -42,7 +42,7 @@ The common calling sequence is **distribution → sampler → SeMCS → estimato
 
 ## Common sequential sampling interface
 
-All five MATLAB toolboxes include the same `SeMCS.m`: construct `simulation = SeMCS(sampler)`, set `NumSam`, `ConPrb`, `MaxIte`, and `Verbose`, then call `raw = simulation.RunIte()`. The model in `sampler.BayStc` supplies initialization, level updates, seed selection, and the order of its original stopping checks. The framework stores `x`, `y`, and the evolving distribution states `g`; the estimator processes this history separately.
+All five MATLAB toolboxes include the same `SeMCS.m`: choose a sampler, construct `simulation = SeMCS(sampler)`, set a constant `simulation.NumSam`, then call `raw = simulation.RunIte()`. The model in `sampler.BayStc` supplies initialization, level updates, seed selection, and the order of its original stopping checks. The framework stores `x`, `y`, and the evolving distribution states `g`; the estimator processes this history separately.
 
 Fixed MCMC settings, including initial step sizes, acceptance targets, adaptation-group counts and ES options, are properties of the sampler. Values that evolve, such as the adapted `lambda` and HMC trajectory time, are stored in the model's `G`. Different toolboxes retain their own numerical settings. `G.active` carries GSuS's evolving active-response mask together with each historical distribution state.
 
@@ -112,22 +112,19 @@ untransformed physical space.
 
 ## Quick start
 
-Set `MaxIte` to the maximum number of sampled levels. A scalar `NumSam` is reused; a vector is a finite per-level budget. The run returns when either limit is reached, and `flg_cvg` reports the method's own convergence criterion. Entries in `G` patch intermediate states; omitted fields and carried `lambda`/`HMC_time` are retained.
-
-Run the driver from the repository root; it adds the required subfolders to the MATLAB path:
+Run from the repository root; the drivers add the required subfolders. This runs Example 1 once with a constant `N = 440` per level and the default `CW_aMH` sampler:
 
 ```matlab
-results = drive_GSS_MIS;
+results = drive_GSS_MIS(1, 440, 1, 2026, 'CW_aMH');
 ```
 
-By default this runs Example 1 with 100 independent repetitions and seed 2026. The returned structure contains probability summaries, empirical CoV and joint model calls. To select Example 2 or run SuS:
+The first argument selects Example 1 or 2, the second is the constant `N`, the third is the number of independent runs, the fourth is `seed`, and the last selects `CW_aMH`, `aCS`, `ES` or `HMC`. For Example 2, the default `N` is 410. The scalar SuS comparison uses the same argument order:
 
 ```matlab
-results = drive_GSS_MIS(2, 410, 100, 2026);
-comparison = drive_SuS(2, 180, 100, 2026);
+comparison = drive_SuS(1, 240, 1, 2026, 'CW_aMH');
 ```
 
-Each repetition uses `seed + run - 1` with the `twister` generator. The SuS baseline adds `10000 * PF_index` to the seed for each independent performance function.
+Without arguments, both drivers run Example 1 for 100 repetitions with seed 2026; `drive_GSS_MIS` uses `N = 440` and `drive_SuS` uses `N = 240`. Use multiple runs to estimate the empirical CoV.
 
 ## Built-in examples
 
@@ -139,6 +136,8 @@ The two numerical examples correspond to the first two examples in the paper. Bo
 | `Ex2` | Two quadratic and two linear boundaries, in the paper's equation order | 2 | 4 | 410 | 180 |
 
 Only these two simple numerical examples are included. Integer chain lengths can change the realized number of samples in a level slightly; the MIS estimator uses the realized counts.
+
+Each repetition uses `seed + run - 1` with the `twister` generator. The SuS baseline adds `10000 * PF_index` to the seed for each independent performance function.
 
 ## Using a custom performance function
 
