@@ -9,8 +9,6 @@ Related implementation: [Python](https://github.com/ZihanLiao-ZJU/Generalized-Su
 ## Contents
 
 - [Overview](#overview)
-- [Common sequential sampling interface](#common-sequential-sampling-interface)
-- [Unified MCMC interface](#unified-mcmc-interface)
 - [Requirements](#requirements)
 - [Repository structure](#repository-structure)
 - [Quick start](#quick-start)
@@ -36,57 +34,6 @@ by constructing a sequence of intermediate union events:
 
 Intermediate membership is strictly `g < threshold`, and final failure is strictly `g < 0`. The conditional quantile probability is `p = 0.1`; MIS calculations use logarithmic weights for numerical stability.
 
-The common calling sequence is **distribution → sampler → SeMCS → estimator**. `SeMCS` owns the iteration loop; distribution classes define evaluations, intermediate thresholds and convergence; drivers select examples, seed repetitions and summarize results. `MIS` is a separate estimator, not a parent class.
-
-`SuS.m` and `SeMCS.m` are identical in both reliability toolboxes. The SuS drivers choose their numerical policy explicitly: GSuS uses physical coordinates, midpoint thresholds and an unclipped terminal threshold; SeMIS uses standard-normal coordinates, Hazen quantiles and clipping at zero. The final failure event is always strictly `g < 0`.
-
-## Common sequential sampling interface
-
-All five MATLAB toolboxes include the same `SeMCS.m`: choose a sampler, construct `simulation = SeMCS(sampler)`, set a constant `simulation.NumSam`, then call `raw = simulation.RunIte()`. The model in `sampler.BayStc` supplies initialization, level updates, seed selection, and the order of its original stopping checks. The framework stores `x`, `y`, and the evolving distribution states `g`; the estimator processes this history separately.
-
-Fixed MCMC settings, including initial step sizes, acceptance targets, adaptation-group counts and ES options, are properties of the sampler. Values that evolve, such as the adapted `lambda` and HMC trajectory time, are stored in the model's `G`. Different toolboxes retain their own numerical settings. `G.active` carries GSuS's evolving active-response mask together with each historical distribution state.
-
-## Unified MCMC interface
-
-Each standalone toolbox includes `CW_aMH`, `aCS`, `HMC`, and `ES`. The original
-outer algorithm and default sampler remain unchanged; choose the sampler in the
-driver (Python CLI: `--sampler`). Example: `drive_GSS_MIS(1, 440, 1, 2026, "aCS")`.
-All four expose `BayStc` and the same call:
-`[u, y, Ncal, BayStc] = SamGen(u_seed, y_seed, Ns)` (Python returns a tuple).
-`SamGen(Nchains, Nsteps)` initializes from the Gaussian reference. Arrays are
-`[Ndim, Nchains, Nsteps]`; packed outputs are `[log_likelihood; log_reference; Y]`.
-Dimension comes from the model, not from the two-dimensional examples.
-
-Distribution state `G` carries model parameters and sampler adaptation. Legacy
-numeric thresholds are stored in `G.parameters` (Python `G["parameters"]`);
-existing named distribution parameters retain their names. aCS uses initial
-`sigma0=1`, `lambda0=0.6`, five adaptation groups, and target acceptance 0.44.
-The final `G.lambda` of one level initializes the next, rather than resetting.
-ES uses the coordinatewise initial-angle `[0, pi]` version, with no stored seed
-at the start of a conditional chain. HMC uses analytic Gaussian rotation in
-Gaussian/Nataf reference coordinates, followed by the likelihood-factor MH test;
-it is not a generic physical-coordinate gradient-HMC implementation. `G.L` or
-`G.L_pi` is the Gaussian reference Cholesky factor, not the covariance matrix.
-HMC's final trajectory time is likewise carried in `G.HMC_time`.
-
-Custom nonnormal physical models must be mapped into Gaussian/Nataf coordinates
-before these kernels are used. Arbitrary dimensional arrays are supported; the
-supplied benchmark formulas retain their documented dimensions. Interface and
-smoke checks do not establish statistical reproduction of every paper result.
-
-
-GSuS now samples and stores Gaussian coordinates `u` in every kernel. `Direct.U2X`
-maps these into physical independent marginals before calling the performance
-function; transform returned samples with that method when physical coordinates
-are required. MATLAB accepts its original probability-distribution objects;
-Python `Direct(marginals)` accepts a list of SciPy frozen distributions (for
-example `scipy.stats.norm` and `scipy.stats.lognorm`) as `PF.Rdis`. Set `PF.Ndim`
-and `PF.Nfun` (or Python `nfun`), and provide `EvlLSF` (or Python `evaluate`).
-This is the independent-input Nataf case; no correlated-marginal extension is
-implied. Standard-normal benchmark mappings remain the identity. The shared
-SuS `physical` option selects this `PF.Rdis` mapping; it does not run MCMC in
-untransformed physical space.
-
 ## Requirements
 
 - MATLAB R2020b or later.
@@ -99,11 +46,11 @@ untransformed physical space.
 .
 ├── drive_GSS_MIS.m          % GSuS-MIS examples and independent repetitions
 ├── drive_SuS.m              % scalar SuS examples and independent repetitions
-├── SeMCS.m                  % shared sequential sampling engine
+├── SeMCS.m                  % sequential sampling engine
 ├── GSS_MIS.m                % standalone intermediate union distribution
 ├── SuS.m                    % standalone scalar intermediate distribution
 ├── Limit-state-functions/   % numerical examples Ex1 and Ex2
-├── MCMC-samplers/           % CW_aMH, aCS, ES, HMC and the common MCMC interface
+├── MCMC-samplers/           % CW_aMH, aCS, ES and HMC samplers
 ├── Support-Fun/             % MIS estimator and numerical utilities
 ├── Operations on Logarithmic values/  % log-domain arithmetic
 ├── LICENSE
@@ -145,7 +92,7 @@ Each repetition uses `seed + run - 1` with the `twister` generator. The SuS base
 2. Define `Ndim`, `Nfun`, and `Rdis`, and implement `g = EvlLSF(obj, X)`. Input samples have shape `[Ndim, Nsamples]`; the output has shape `[Nfun, Nsamples]`. Failure is `g < 0`.
 3. Follow the driver to construct `model = GSS_MIS(MyProblem)`, `sampler = CW_aMH(model)`, and `simulation = SeMCS(sampler)`, then set `NumSam` before calling `RunIte`.
 
-The supplied `Direct` distribution helper handles independent marginals. The built-in examples use independent standard-normal variables.
+Set `Rdis = Direct(marginals)`, where `marginals` contains MATLAB probability-distribution objects for independent inputs. `EvlLSF` receives physical coordinates. Returned samples are stored in Gaussian coordinates; use `Rdis.U2X(u)` to obtain physical samples. The built-in standard-normal examples use the identity mapping.
 
 ## Outputs
 
