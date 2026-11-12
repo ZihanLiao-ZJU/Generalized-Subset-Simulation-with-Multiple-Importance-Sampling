@@ -59,19 +59,20 @@ Intermediate membership is strictly `g < threshold`, and final failure is strict
 
 ## Quick start
 
-Run from the repository root; the drivers add the required subfolders. This runs Example 1 once with a constant `N = 440` per level and the default `CW_aMH` sampler:
+Edit `example`, `N`, `Nrun` and `SamplerClass` inside `drive_GSS_MIS.m` or `drive_SuS.m`. Select `SamplerClass = @CW_aMH` (the default), or choose another supplied sampler: `CW_aMH`, `aCS`, `HMC` or `ES`.
+
+Both scripts default to Example 1 and 100 runs. `drive_GSS_MIS` uses 440 samples per level and `drive_SuS` uses 240. For Example 2, set the sample counts to 410 and 180, respectively. For a single run, set `Nrun = 1` inside the script.
+
+Run the chosen script from the repository root:
 
 ```matlab
-results = drive_GSS_MIS(1, 440, 1, 2026, 'CW_aMH');
+drive_GSS_MIS
+drive_SuS
 ```
 
-The first argument selects Example 1 or 2, the second is the constant `N`, the third is the number of independent runs, the fourth is `seed`, and the last selects `CW_aMH`, `aCS`, `ES` or `HMC`. For Example 2, the default `N` is 410. The scalar SuS comparison uses the same argument order:
+Use `drive_GSS_MIS` for GSuS-MIS or `drive_SuS` for the scalar SuS comparison.
 
-```matlab
-comparison = drive_SuS(1, 240, 1, 2026, 'CW_aMH');
-```
-
-Without arguments, both drivers run Example 1 for 100 repetitions with seed 2026; `drive_GSS_MIS` uses `N = 440` and `drive_SuS` uses `N = 240`. Use multiple runs to estimate the empirical CoV.
+Use multiple runs to estimate statistics across independent runs.
 
 ## Built-in examples
 
@@ -83,8 +84,6 @@ The two numerical examples correspond to the first two examples in the paper. Bo
 | `Ex2` | Two quadratic and two linear boundaries, in the paper's equation order | 2 | 4 | 410 | 180 |
 
 Only these two simple numerical examples are included. Integer chain lengths can change the realized number of samples in a level slightly; the MIS estimator uses the realized counts.
-
-Each repetition uses `seed + run - 1` with the `twister` generator. The SuS baseline adds `10000 * PF_index` to the seed for each independent performance function.
 
 ## Using a custom performance function
 
@@ -98,9 +97,9 @@ Set `Rdis = Direct(marginals)`, where `marginals` contains MATLAB probability-di
 
 The raw sampling history `g` contains `Nite` sampled states followed by one final candidate state. `Nsze` records the chain and step counts at each sampled level.
 
-All drivers return the same summary fields: `example`, `algorithm`, `N`, `repeats`, `seed`, `mean`, `standard_deviation`, `cov`, `mean_joint_calls`, `unfinished`, and `records`.
+The scripts store summary fields in `results`: `example`, `algorithm`, `N`, `repeats`, `mean`, `standard_deviation`, `cov`, `mean_joint_calls`, `unfinished`, and `records`.
 
-Each record contains `seed`, `probability`, `joint_calls`, `layer_joint_calls`, `actual_level_samples`, and `completed`. `unfinished` is the number of repetitions that did not reach the failure domain. `cov` is the empirical sample standard deviation divided by the mean; it is distinct from optional single-run uncertainty bounds. With one repetition, sample standard deviation and empirical CoV are returned as `NaN`.
+Each record contains `probability`, `joint_calls`, `layer_joint_calls`, `actual_level_samples`, and `completed`. `unfinished` is the number of repetitions that did not reach the failure domain. `cov` is the empirical sample standard deviation divided by the mean; it is distinct from optional single-run uncertainty bounds. With one repetition, sample standard deviation and empirical CoV are returned as `NaN`.
 
 The intermediate sampling output from `SeMCS.RunIte` retains `x`, `y`, `g`, `Nsam`, `Nsze`, `Ncal`, `Nite`, `flg_cvg`, and the final distribution object `intBay`. GSuS stores the active response history in each `g{level}.active`.
 
