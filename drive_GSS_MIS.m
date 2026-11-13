@@ -1,27 +1,21 @@
 %% Problem and sampling settings
-example = 1;
+PF = Ex1();
+% PF = Ex2();
 N = 440;                       % Constant samples per level
 Nrun = 100;                   % Independent runs; set to 1 for a single run
 SamplerClass = @CW_aMH;      % CW_aMH, aCS, HMC or ES
 % Example 2 sample counts: GSS-MIS 410; scalar SuS 180.
 
+%% Model and sampler
+model = GSS_MIS(PF);
+simulation = SeMCS(SamplerClass(model));
+simulation.NumSam = N;
+
 %% Run simulations
-root = fileparts(mfilename('fullpath'));
-addpath(fullfile(root, 'Limit-state-functions'));
-addpath(fullfile(root, 'Support-Fun'));
-addpath(fullfile(root, 'MCMC-samplers'));
-addpath(fullfile(root, 'Operations on Logarithmic values'));
 records = cell(1, Nrun);
-assert(example <= 2, 'The toolbox provides examples 1 and 2.');
 algorithm = 'GSS-MIS';
+example = sscanf(class(PF), 'Ex%d');
 for run = 1:Nrun
-    if example == 1, PF = Ex1; else, PF = Ex2; end
-    model = GSS_MIS(PF);
-    sampler = SamplerClass(model);
-    simulation = SeMCS(sampler);
-    simulation.NumSam = N;
-    simulation.MaxIte = 1000;
-    simulation.Verbose = false;
     out = simulation.RunIte;
     mis = MIS(out);
     probability = mis.Pf_hat;
@@ -41,5 +35,5 @@ results = struct('example', example, 'algorithm', algorithm, 'N', N, ...
     'cov', sd ./ mean(probabilities, 2), ...
     'mean_joint_calls', mean(calls), 'unfinished', sum(~completed), ...
     'records', {records});
-fprintf('%s example %d: %d runs, mean joint calls %.2f\n', ...
-    algorithm, example, Nrun, results.mean_joint_calls);
+fprintf('%s %s: %d runs, mean joint calls %.2f\n', ...
+    algorithm, class(PF), Nrun, results.mean_joint_calls);

@@ -4,6 +4,8 @@ classdef SuS
     % PF.Dist; the historical name 'physical' maps through PF.Rdis.
 
     properties
+        MaxIte = 1000
+        Verbose = false
         TF
         Nfun
         Ndim

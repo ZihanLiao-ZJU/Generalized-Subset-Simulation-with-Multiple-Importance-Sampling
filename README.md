@@ -59,7 +59,9 @@ Intermediate membership is strictly `g < threshold`, and final failure is strict
 
 ## Quick start
 
-Edit `example`, `N`, `Nrun` and `SamplerClass` inside `drive_GSS_MIS.m` or `drive_SuS.m`. Select `SamplerClass = @CW_aMH` (the default), or choose another supplied sampler: `CW_aMH`, `aCS`, `HMC` or `ES`.
+Add this repository and all its subfolders to the MATLAB path before running the script.
+
+Choose `PF = Ex1()` or `PF = Ex2()` in `drive_GSS_MIS.m`. For the scalar comparison, set `example` to 1 or 2 in `drive_SuS.m`. Both scripts define the sample count `N`, repeat count `Nrun` and `SamplerClass`. Available samplers are `CW_aMH` (default), `aCS`, `HMC` and `ES`.
 
 Both scripts default to Example 1 and 100 runs. `drive_GSS_MIS` uses 440 samples per level and `drive_SuS` uses 240. For Example 2, set the sample counts to 410 and 180, respectively. For a single run, set `Nrun = 1` inside the script.
 

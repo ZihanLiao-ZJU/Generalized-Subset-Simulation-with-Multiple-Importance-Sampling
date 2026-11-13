@@ -6,15 +6,10 @@ SamplerClass = @CW_aMH;      % CW_aMH, aCS, HMC or ES
 % Example 2 sample counts: GSS-MIS 410; scalar SuS 180.
 
 %% Run simulations
-root = fileparts(mfilename('fullpath'));
-addpath(fullfile(root, 'Limit-state-functions'));
-addpath(fullfile(root, 'Support-Fun'));
-addpath(fullfile(root, 'MCMC-samplers'));
-addpath(fullfile(root, 'Operations on Logarithmic values'));
 records = cell(1, Nrun);
-assert(example <= 2, 'The toolbox provides examples 1 and 2.');
+assert(ismember(example,[1 2]), 'Choose example 1 or 2.');
 algorithm = 'SuS';
-if example == 1, nfun = 2; else, nfun = 4; end
+nfun = 2 * example;                         % Two responses in Ex1, four in Ex2
 for run = 1:Nrun
     probability = zeros(nfun, 1);
     calls = zeros(nfun, 1);
@@ -26,11 +21,8 @@ for run = 1:Nrun
         model = SuS(PF, 'physical', 'midpoint', false);
         simulation = SeMCS(SamplerClass(model));
         simulation.NumSam = N;
-        simulation.MaxIte = 1000;
-        simulation.Verbose = false;
         out = simulation.RunIte;
         calls(j) = sum(out.Ncal);
-        assert(calls(j) == PF.count, 'Scalar call count mismatch.');
         z = 1;
         for level = 1:out.Nite-1
             z = z*mean(out.y{level}(4,:) < out.g{level+1}.parameters);

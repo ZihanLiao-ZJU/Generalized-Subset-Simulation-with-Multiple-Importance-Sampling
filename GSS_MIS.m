@@ -9,6 +9,8 @@
 % Structures 313, 107741. DOI: 10.1016/j.compstruc.2025.107741.
 classdef GSS_MIS
     properties
+        MaxIte = 1000
+        Verbose = false
         TF
         Ncal = 0;
         Nfun
